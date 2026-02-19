@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <!-- iOS优化：防止缩放 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    
+    <!-- iOS PWA配置 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="双色球生成器">
+    
+    <!-- iOS图标（可选，需要准备图标文件） -->
+    <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='45' fill='%23667eea'/%3E%3Ctext x='50' y='65' font-size='45' text-anchor='middle' fill='white'%3E8%3C/text%3E%3C/svg%3E">
+    
+    <title>双色球号码生成器 - iOS版</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            /* iOS：防止文本大小调整 */
+            -webkit-text-size-adjust: 100%;
+        }
+        
+        /* iOS Safari修复 */
+        html {
+            height: 100%;
+            overflow-x: hidden;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 15px;
+            /* iOS：防止橡皮筋效果 */
+            overscroll-behavior: none;
+            /* iOS：平滑滚动 */
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .container {
+            max-width: 100%;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 20px;
+            padding-top: env(safe-area-inset-top, 0);
+        }
+        
+        .header h1 {
+            font-size: 1.8em;
+            margin-bottom: 8px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+        
+        .ios-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 18px;
+            margin-bottom: 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+        }
+        
+        .card h2 {
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 8px;
+            border-bottom: 3px solid #667eea;
+            font-size: 1.3em;
+        }
+        
+        .form-group {
+            margin-bottom: 12px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: bold;
+            font-size: 15px;
+        }
+        
+        /* iOS输入框优化 */
+        .form-group input, .form-group select, textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px; /* iOS：防止自动缩放 */
+            transition: border-color 0.3s;
+            /* iOS：去除默认样式 */
+            -webkit-appearance: none;
+            appearance: none;
+            background-color: white;
+        }
+        
+        .form-group input:focus, .form-group select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        /* iOS按钮优化 */
+        .btn {
+            padding: 14px 20px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: bold;
+            width: 100%;
+            margin-bottom: 10px;
+            /* iOS：去除默认高光 */
+            -webkit-tap-highlight-color: transparent;
+            /* iOS：去除默认样式 */
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        
+        .btn:active {
+            transform: scale(0.98);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+        
+        .btn-success {
+            background: #4caf50;
+            color: white;
+        }
+        
+        .result-area {
+            margin-top: 15px;
+            padding: 12px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            min-height: 60px;
+        }
+        
+        .number-display {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 8px 0;
+        }
+        
+        .ball {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 13px;
+            color: white;
+            /* iOS：防止触摸时的灰色背景 */
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .ball-red {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+        }
+        
+        .ball-blue {
+            background: linear-gradient(135deg, #4834d4 0%, #686de0 100%);
+        }
+        
+        .number-row {
+            background: white;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .number-index {
+            font-weight: bold;
+            color: #667eea;
+            min-width: 45px;
+            font-size: 14px;
+        }
+        
+        .stats-row {
+            display: flex;
+            gap: 6px;
+            flex-wrap: wrap;
+        }
+        
+        .stat-tag {
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        
+        .stat-ac { background: #e3f2fd; color: #1976d2; }
+        .stat-sum { background: #f3e5f5; color: #7b1fa2; }
+        .stat-span { background: #e8f5e9; color: #388e3c; }
+        
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 12px;
+            margin: 12px 0;
+            border-radius: 0 5px 5px 0;
+            font-size: 14px;
+        }
+        
+        .info-box h4 {
+            color: #1976d2;
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+        
+        .info-box ul {
+            margin-left: 16px;
+            color: #555;
+        }
+        
+        .info-box li {
+            margin: 4px 0;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .tab-btn {
+            padding: 10px 16px;
+            border: none;
+            background: rgba(255,255,255,0.3);
+            color: white;
+            cursor: pointer;
+            border-radius: 8px;
+            font-weight: bold;
+            font-size: 14px;
+            flex: 1;
+            min-width: 70px;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .tab-btn.active {
+            background: white;
+            color: #667eea;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-family: -apple-system-monospace, monospace;
+            font-size: 15px;
+            resize: vertical;
+            -webkit-appearance: none;
+        }
+        
+        .check-result {
+            margin-top: 12px;
+        }
+        
+        .check-item {
+            background: white;
+            padding: 12px;
+            margin: 8px 0;
+            border-radius: 10px;
+            border: 2px solid #e0e0e0;
+        }
+        
+        .check-item.win {
+            border-color: #4caf50;
+            background: #e8f5e9;
+        }
+        
+        .prize-tag {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-weight: bold;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+        
+        .prize-1 { background: #ffeb3b; color: #f57f17; }
+        .prize-2 { background: #ff9800; color: white; }
+        .prize-3 { background: #4caf50; color: white; }
+        .prize-4 { background: #2196f3; color: white; }
+        .prize-5 { background: #9c27b0; color: white; }
+        .prize-6 { background: #00bcd4; color: white; }
+        .prize-none { background: #9e9e9e; color: white; }
+        
+        /* iOS底部安全区域 */
+        .safe-bottom {
+            padding-bottom: env(safe-area-inset-bottom, 20px);
+        }
+        
+        /* iOS分享按钮 */
+        .ios-share-btn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 50px;
+            height: 50px;
+            border-radius: 25px;
+            background: #667eea;
+            color: white;
+            border: none;
+            font-size: 20px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 1000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        /* 添加提示 */
+        .ios-tip {
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 0 5px 5px 0;
+            font-size: 13px;
+        }
+        
+        /* 响应式优化 */
+        @media (max-width: 375px) {
+            .header h1 {
+                font-size: 1.5em;
+            }
+            
+            .ball {
+                width: 32px;
+                height: 32px;
+                font-size: 12px;
+            }
+            
+            .card {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container safe-bottom">
+        <div class="header">
+            <h1>🎱 双色球号码生成器</h1>
+            <p>智能生成、开奖查询、中奖检查</p>
+            <span class="ios-badge">📱 iPhone 优化版</span>
+        </div>
+        
+        <div class="ios-tip">
+            💡 <strong>提示：</strong>点击底部"分享"按钮可添加到主屏幕，像App一样使用
+        </div>
+        
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('generate')">生成</button>
+            <button class="tab-btn" onclick="switchTab('check')">检查</button>
+            <button class="tab-btn" onclick="switchTab('rules')">规则</button>
+        </div>
+        
+        <!-- 生成号码 -->
+        <div id="tab-generate" class="tab-content active">
+            <div class="card">
+                <h2>🎲 生成号码</h2>
+                <div class="form-group">
+                    <label>生成组数</label>
+                    <input type="number" id="gen-count" value="5" min="1" max="50">
+                </div>
+                
+                <div class="info-box">
+                    <h4>📊 智能筛选</h4>
+                    <ul>
+                        <li><strong>AC值</strong>：5-9（号码复杂度）</li>
+                        <li><strong>和值</strong>：61-120（号码总和）</li>
+                        <li><strong>跨度</strong>：20-34（最大-最小）</li>
+                    </ul>
+                </div>
+                
+                <button class="btn btn-primary" onclick="generateNumbers()">开始生成</button>
+                <button class="btn btn-secondary" onclick="copyToCheck()">复制到检查</button>
+                <div id="generate-result" class="result-area"></div>
+            </div>
+        </div>
+        
+        <!-- 中奖检查 -->
+        <div id="tab-check" class="tab-content">
+            <div class="card">
+                <h2>✅ 中奖检查</h2>
+                <div class="form-group">
+                    <label>开奖期号</label>
+                    <input type="text" id="check-period" placeholder="如：2026019">
+                </div>
+                
+                <div class="form-group">
+                    <label>开奖号码（可选）</label>
+                    <input type="text" id="manual-red" placeholder="红球：01 03 05 07 09 11">
+                    <input type="text" id="manual-blue" placeholder="蓝球：02" style="margin-top: 8px;">
+                </div>
+                
+                <div class="form-group">
+                    <label>您的号码</label>
+                    <textarea id="check-numbers" placeholder="01 03 05 07 09 11 02&#10;复式：01 03 05 07 09 11 13 + 02 08"></textarea>
+                </div>
+                
+                <button class="btn btn-primary" onclick="checkWin()">检查中奖</button>
+                <div id="check-result" class="result-area"></div>
+            </div>
+        </div>
+        
+        <!-- 规则说明 -->
+        <div id="tab-rules" class="tab-content">
+            <div class="card">
+                <h2>📝 使用说明</h2>
+                <div class="info-box">
+                    <h4>🎯 单式号码</h4>
+                    <p>输入7个数字（6红+1蓝）</p>
+                    <p>例：01 03 05 07 09 11 02</p>
+                </div>
+                <div class="info-box">
+                    <h4>🎲 复式号码</h4>
+                    <p>用 + 分隔红球和蓝球</p>
+                    <p>例：01 03 05 07 09 11 13 + 02 08</p>
+                </div>
+                <div class="info-box">
+                    <h4>🏆 中奖规则</h4>
+                    <ul>
+                        <li>一等奖：6红+1蓝</li>
+                        <li>二等奖：6红+0蓝</li>
+                        <li>三等奖：5红+1蓝</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- iOS分享按钮 -->
+    <button class="ios-share-btn" onclick="addToHomeScreen()" title="添加到主屏幕">+</button>
+    
+    <script>
+        // 全局变量
+        let generatedNumbers = [];
+        
+        // 切换标签
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById('tab-' + tabName).classList.add('active');
+        }
+        
+        // 计算AC值
+        function calculateAC(redBalls) {
+            if (redBalls.length < 2) return 0;
+            const diffs = new Set();
+            for (let i = 0; i < redBalls.length; i++) {
+                for (let j = i + 1; j < redBalls.length; j++) {
+                    diffs.add(Math.abs(redBalls[j] - redBalls[i]));
+                }
+            }
+            return diffs.size;
+        }
+        
+        // 计算和值
+        function calculateSum(redBalls) {
+            return redBalls.reduce((a, b) => a + b, 0);
+        }
+        
+        // 计算跨度
+        function calculateSpan(redBalls) {
+            if (redBalls.length < 2) return 0;
+            return Math.max(...redBalls) - Math.min(...redBalls);
+        }
+        
+        // 生成单组号码（带控制）
+        function generateSingle() {
+            const redPool = Array.from({length: 33}, (_, i) => i + 1);
+            const bluePool = Array.from({length: 16}, (_, i) => i + 1);
+            
+            // 生成蓝球
+            const blueBalls = [];
+            const blueCopy = [...bluePool];
+            for (let i = 0; i < 1; i++) {
+                const idx = Math.floor(Math.random() * blueCopy.length);
+                blueBalls.push(blueCopy.splice(idx, 1)[0]);
+            }
+            blueBalls.sort((a, b) => a - b);
+            
+            // 生成红球（带控制）
+            let redBalls;
+            let attempts = 0;
+            do {
+                redBalls = [];
+                const redCopy = [...redPool];
+                for (let i = 0; i < 6; i++) {
+                    const idx = Math.floor(Math.random() * redCopy.length);
+                    redBalls.push(redCopy.splice(idx, 1)[0]);
+                }
+                redBalls.sort((a, b) => a - b);
+                
+                const ac = calculateAC(redBalls);
+                const sum = calculateSum(redBalls);
+                const span = calculateSpan(redBalls);
+                
+                if (ac >= 5 && ac <= 9 && sum >= 61 && sum <= 120 && span >= 20 && span <= 34) {
+                    break;
+                }
+                attempts++;
+            } while (attempts < 500);
+            
+            return {
+                red: redBalls,
+                blue: blueBalls,
+                ac: calculateAC(redBalls),
+                sum: calculateSum(redBalls),
+                span: calculateSpan(redBalls)
+            };
+        }
+        
+        // 生成号码
+        function generateNumbers() {
+            const count = parseInt(document.getElementById('gen-count').value);
+            generatedNumbers = [];
+            const resultDiv = document.getElementById('generate-result');
+            resultDiv.innerHTML = '<div class="loading">正在生成...</div>';
+            
+            setTimeout(() => {
+                let html = '';
+                for (let i = 0; i < count; i++) {
+                    const nums = generateSingle();
+                    generatedNumbers.push(nums);
+                    
+                    html += `
+                        <div class="number-row">
+                            <span class="number-index">第${i + 1}组</span>
+                            <div class="number-display">
+                                ${nums.red.map(n => `<div class="ball ball-red">${n.toString().padStart(2, '0')}</div>`).join('')}
+                                ${nums.blue.map(n => `<div class="ball ball-blue">${n.toString().padStart(2, '0')}</div>`).join('')}
+                            </div>
+                            <div class="stats-row">
+                                <span class="stat-tag stat-ac">AC:${nums.ac}</span>
+                                <span class="stat-tag stat-sum">和:${nums.sum}</span>
+                                <span class="stat-tag stat-span">跨:${nums.span}</span>
+                            </div>
+                        </div>
+                    `;
+                }
+                resultDiv.innerHTML = html;
+            }, 100);
+        }
+        
+        // 复制到检查
+        function copyToCheck() {
+            if (generatedNumbers.length === 0) {
+                alert('请先生成号码');
+                return;
+            }
+            
+            const numbersText = generatedNumbers.map(nums => {
+                const redStr = nums.red.map(n => n.toString().padStart(2, '0')).join(' ');
+                const blueStr = nums.blue.map(n => n.toString().padStart(2, '0')).join(' ');
+                return `${redStr} ${blueStr}`;
+            }).join('\n');
+            
+            document.getElementById('check-numbers').value = numbersText;
+            switchTab('check');
+            alert('号码已复制到中奖检查页面');
+        }
+        
+        // 解析用户号码
+        function parseNumbers(text) {
+            const lines = text.split('\n').filter(l => l.trim());
+            return lines.map(line => {
+                let red, blue;
+                
+                if (line.includes('+')) {
+                    const parts = line.split('+');
+                    red = parts[0].trim().split(/\s+/).map(n => parseInt(n)).filter(n => !isNaN(n));
+                    blue = parts[1].trim().split(/\s+/).map(n => parseInt(n)).filter(n => !isNaN(n));
+                } else {
+                    const nums = line.trim().split(/\s+/).map(n => parseInt(n)).filter(n => !isNaN(n));
+                    red = nums.slice(0, -1);
+                    blue = [nums[nums.length - 1]];
+                }
+                
+                return { red, blue };
+            });
+        }
+        
+        // 检查中奖
+        async function checkWin() {
+            const period = document.getElementById('check-period').value.trim();
+            const numbersText = document.getElementById('check-numbers').value.trim();
+            const manualRed = document.getElementById('manual-red').value.trim();
+            const manualBlue = document.getElementById('manual-blue').value.trim();
+            const resultDiv = document.getElementById('check-result');
+            
+            if (!numbersText) {
+                resultDiv.innerHTML = '<div class="error">请输入要检查的号码</div>';
+                return;
+            }
+            
+            // 获取开奖号码
+            let winRed, winBlue;
+            if (manualRed && manualBlue) {
+                winRed = manualRed.split(/\s+/).map(n => parseInt(n)).filter(n => !isNaN(n));
+                winBlue = parseInt(manualBlue);
+            } else if (period) {
+                resultDiv.innerHTML = '<div class="loading">正在查询...</div>';
+                try {
+                    const response = await fetch(`https://api.huiniao.top/interface/home/lotteryHistory?type=ssq&page=1&limit=100`);
+                    const data = await response.json();
+                    
+                    if (data.code === 1 && data.data && data.data.data && data.data.data.list) {
+                        const item = data.data.data.list.find(i => i.code === period);
+                        if (item) {
+                            winRed = [parseInt(item.one), parseInt(item.two), parseInt(item.three), 
+                                      parseInt(item.four), parseInt(item.five), parseInt(item.six)];
+                            winBlue = parseInt(item.seven);
+                        } else {
+                            resultDiv.innerHTML = '<div class="error">未找到该期数据</div>';
+                            return;
+                        }
+                    }
+                } catch (error) {
+                    resultDiv.innerHTML = '<div class="error">查询失败，请手动输入开奖号码</div>';
+                    return;
+                }
+            } else {
+                resultDiv.innerHTML = '<div class="error">请输入期号或开奖号码</div>';
+                return;
+            }
+            
+            // 解析用户号码
+            const userNumbers = parseNumbers(numbersText);
+            
+            // 检查结果
+            let html = `
+                <div style="margin-bottom: 10px; font-weight: bold;">
+                    开奖：${winRed.map(n => n.toString().padStart(2, '0')).join(' ')} + ${winBlue.toString().padStart(2, '0')}
+                </div>
+            `;
+            
+            userNumbers.forEach((nums, i) => {
+                const redHits = nums.red.filter(n => winRed.includes(n)).length;
+                const blueHits = nums.blue.includes(winBlue) ? 1 : 0;
+                
+                let prize = '未中奖';
+                let prizeClass = 'prize-none';
+                
+                if (blueHits >= 1) {
+                    if (redHits === 6) { prize = '一等奖'; prizeClass = 'prize-1'; }
+                    else if (redHits === 5) { prize = '三等奖'; prizeClass = 'prize-3'; }
+                    else if (redHits === 4) { prize = '五等奖'; prizeClass = 'prize-5'; }
+                    else if (redHits <= 3) { prize = '六等奖'; prizeClass = 'prize-6'; }
+                } else {
+                    if (redHits === 6) { prize = '二等奖'; prizeClass = 'prize-2'; }
+                    else if (redHits === 5) { prize = '四等奖'; prizeClass = 'prize-4'; }
+                    else if (redHits === 4) { prize = '五等奖'; prizeClass = 'prize-5'; }
+                }
+                
+                const isWin = prize !== '未中奖';
+                
+                html += `
+                    <div class="check-item ${isWin ? 'win' : ''}">
+                        <div style="font-weight: bold; margin-bottom: 5px;">第${i + 1}组</div>
+                        <div class="number-display">
+                            ${nums.red.map(n => `<div class="ball ball-red">${n.toString().padStart(2, '0')}</div>`).join('')}
+                            ${nums.blue.map(n => `<div class="ball ball-blue">${n.toString().padStart(2, '0')}</div>`).join('')}
+                        </div>
+                        <div style="margin-top: 5px; font-size: 13px;">
+                            命中：${redHits}红 + ${blueHits}蓝
+                        </div>
+                        <span class="prize-tag ${prizeClass}">${prize}</span>
+                    </div>
+                `;
+            });
+            
+            resultDiv.innerHTML = html;
+        }
+        
+        // 添加到主屏幕提示
+        function addToHomeScreen() {
+            const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+            
+            if (isIOS) {
+                alert('添加到主屏幕方法：\n\n1. 点击底部中间的"分享"按钮（方框带箭头图标）\n2. 向上滑动，找到"添加到主屏幕"\n3. 点击"添加"\n\n之后就可以像App一样使用了！');
+            } else {
+                alert('在Chrome浏览器中：\n\n1. 点击菜单（三个点）\n2. 选择"添加到主屏幕"\n3. 点击"添加"');
+            }
+        }
+        
+        // iOS双击缩放禁止
+        let lastTouchEnd = 0;
+        document.addEventListener('touchend', function(event) {
+            const now = Date.now();
+            if (now - lastTouchEnd <= 300) {
+                event.preventDefault();
+            }
+            lastTouchEnd = now;
+        }, false);
+        
+        // iOS键盘收起时恢复视图
+        window.addEventListener('resize', function() {
+            if (document.activeElement.tagName === 'INPUT' || document.activeElement.tagName === 'TEXTAREA') {
+                window.setTimeout(function() {
+                    document.activeElement.scrollIntoViewIfNeeded();
+                }, 0);
+            }
+        });
+        
+        // 页面加载完成后的初始化
+        window.onload = function() {
+            generateNumbers();
+        };
+    </script>
+</body>
+</html>
